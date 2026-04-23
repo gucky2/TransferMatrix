@@ -1,9 +1,7 @@
 
+using TransferMatrix
 using Plots
 using BenchmarkTools
-
-include("src/transfer_matrix.jl")
-
 
 
 # freqs = (22:0.01:22.05)*1e9
