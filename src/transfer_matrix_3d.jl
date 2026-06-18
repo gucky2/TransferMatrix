@@ -34,8 +34,8 @@ function transfer_matrix_3d(::Type{Dist},distances::AbstractVector{<:Real},
     
 
 
-    pd1 = 1.# cispi(-2*gpm.freqs[f]*nd*(1e-3)/c0)
-    pd2 = 1.# cispi(+2*gpm.freqs[f]*nd*(1e-3)/c0)
+    pd1 = cispi(-2*gpm.freqs[f]*nd*(1e-3)/c0)
+    pd2 = cispi(+2*gpm.freqs[f]*nd*(1e-3)/c0)
 
     for ml in 1:ML
         @views copyto!(T[:,:,ml],Gd)

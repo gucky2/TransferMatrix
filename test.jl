@@ -3,9 +3,9 @@ using TransferMatrix
 using Plots
 using LinearAlgebra
 using StaticArrays
+using FFTW
 
 const c0 = 299792458.
-
 
 freqs = range(18e9,24e9,1_000);
 
@@ -51,6 +51,32 @@ dists = [7.0]*1e-3
 #     7.310886,
 # ]*1e-3
 
+function propagate!(E0::Matrix{ComplexF64},k0::Number,coords::Coordinates,dz::Real)
+    fft!(E0)
+    @. E0 *= cis(-conj(sqrt(k0^2-coords.kR)*dz))
+    ifft!(E0)
+    
+    return
+end
+
+function propagate!(E0::Matrix{ComplexF64},k0::Number,coords::Coordinates,dz::Real,
+        tiltx::Real,tilty::Real)
+        
+    propagate!(E0,k0,coords,dz)
+    tiltField!(E0,k0,coords,tiltx,tilty)
+
+    return
+end
+
+function tiltField!(E0::Matrix{ComplexF64},k0::Number,coords::Coordinates,
+        tiltx::Real,tilty::Real)
+    
+
+    E0 .*= cis.(-k0*(tiltx*coords.R .* cos.(coords.Φ) + tilty*coords.R .* sin.(coords.Φ)))
+
+    return
+end
+
 function propagationCoeffs(freq::Real,
         distance::Real,tiltx::Real,tilty::Real,
         eps::Number,modes::Modes,coords::Coordinates)
@@ -63,6 +89,7 @@ function propagationCoeffs(freq::Real,
     for ml in 1:ML
         mode = copy(modes[:,:,1,ml])
         propagate!(mode,k0,coords,distance,tiltx,tilty)
+        mode .*= coords.diskmaskin
         coeffs = modeDecomp(mode,modes)
         @views copyto!(P[:,ml],coeffs)
     end
@@ -71,7 +98,7 @@ function propagationCoeffs(freq::Real,
 end
 
 
-function transfer_matrix_3d(distances,tiltx,tilty,ax,f,modes,coords; eps=24.0,tand=0.,nm=1e15,thickness=1e-3)
+function transfer_matrix_3d(distances,tiltx,tilty,ax,f,modes,coords; eps=24.0,tand=0.,nm=1e30,thickness=1e-3)
     M = modes.M; L = modes.L; ML = M*(2L+1)
     
     RB = Array{ComplexF64}(undef,2,ML)
@@ -97,7 +124,7 @@ function transfer_matrix_3d(distances,tiltx,tilty,ax,f,modes,coords; eps=24.0,ta
     pd1 = cispi(-2*f*nd*thickness/c0)
     pd2 = cispi(+2*f*nd*thickness/c0)
 
-    st = propagationCoeffs(f,0,deg2rad(-tiltx),deg2rad(tilty),1.0,modes,coords)
+    st = propagationCoeffs(f,0,deg2rad(tiltx),deg2rad(tilty),1.0,modes,coords)
 
     for ml in 1:ML
         copyto!(T[ml],Gd)
@@ -108,7 +135,7 @@ function transfer_matrix_3d(distances,tiltx,tilty,ax,f,modes,coords; eps=24.0,ta
     # iterate in reverse order to sum up MM in single sweep (thx david)
     
     for i in Iterators.reverse(eachindex(distances))
-        st = propagationCoeffs(f,0,deg2rad(-tiltx),deg2rad(tilty),1.0,modes,coords)
+        st = propagationCoeffs(f,0,deg2rad(tiltx),deg2rad(tilty),1.0,modes,coords)
         ax_ = st*ax
         
         for ml in 1:ML
@@ -237,31 +264,40 @@ ax = axionModes(coords,modes)
 B = zeros(ComplexF64,M*(2L+1),length(freqs))
 
 @time for i in eachindex(freqs)
-    B[:,i] .= transfer_matrix_3d(dists,1,0,ax,freqs[i],modes,coords)[2,:]
+    B[:,i] .= transfer_matrix_3d(dists,0,1,ax,freqs[i],modes,coords)[2,:]
 end
 
 abs2.(propagationCoeffs(freqs[500],7e-3,0,0,1.0,modes,coords))
-abs2.(propagationCoeffs(freqs[500],7e-3,deg2rad(0.1),0,1.0,modes,coords))
+abs2.(propagationCoeffs(freqs[500],7e-3,0,deg2rad(1),1.0,modes,coords))
 
-st = propagationCoeffs(freqs[500],0,deg2rad(0.1),deg2rad(0),1.0,modes,coords)
+st = propagationCoeffs(freqs[500],0,deg2rad(1),deg2rad(0),1.0,modes,coords)
 
-plot(freqs/1e9,abs2.(B)'; label=["L=-1" "L= 0" "L= 1"])
+graph1 = plot(freqs/1e9,abs2.(B)'; label=["L=-1" "L= 0" "L= 1"])
+display(graph1)
 
+#%% 
 
+# filename = "BoostFractor_x_tilt_1e-1degree.svg"
+# filepath = joinpath(@__DIR__, "Plots_for_Meeting/")
+# filepath = joinpath(filepath, filename)
+
+# savefig(filepath)
+
+# %%
 
 B = zeros(ComplexF64,M*(2L+1),length(freqs)); ML = M*(2L+1)
 # B = zeros(ComplexF64,length(freqs))
 
-tiltx = deg2rad(1)
+tiltx = deg2rad(0)
+tilty = deg2rad(1)
 
 eps = 24.; tand = 0; nm = 1e15
-
 ϵ  = eps*(1.0-1.0im*tand); nd = sqrt(ϵ); nm = complex(nm); ϵm = nm^2
 A  = 1-1/ϵ; A0 = 1-1/ϵm
 
 G0 = SMatrix{2,2,ComplexF64}((1+nm)/2,   (1-nm)/2,   (1-nm)/2,   (1+nm)/2)
-Gv = SMatrix{2,2,ComplexF64}((nd+1)/2nd, (nd-1)/2nd, (nd-1)/2nd, (nd+1)/2nd)
-Gd = SMatrix{2,2,ComplexF64}((1+nd)/2,   (1-nd)/2,   (1-nd)/2,   (1+nd)/2)
+Gv = SMatrix{2,2,ComplexF64}((nd+1)/2nd, (nd-1)/2nd, (nd-1)/2nd, (nd+1)/2nd) # Gv free space -> disk
+Gd = SMatrix{2,2,ComplexF64}((1+nd)/2,   (1-nd)/2,   (1-nd)/2,   (1+nd)/2) # Gd disk -> free space
 
 S  = SMatrix{2,2,ComplexF64}( A/2, 0.0im, 0.0im,  A/2)
 S0 = SMatrix{2,2,ComplexF64}(A0/2, 0.0im, 0.0im, A0/2)
@@ -271,49 +307,144 @@ S0 = SMatrix{2,2,ComplexF64}(A0/2, 0.0im, 0.0im, A0/2)
     # T03 = G2*P2*G1*P1*G0*P0
     # MM = T13*S0+T23*S1+T33*S2
 
-    Pd = SMatrix{2,2,ComplexF64}(cispi(+2*freqs[i]*nd*1e-3/c0), 0, 0, cispi(-2*freqs[i]*nd*1e-3/c0))
+    Pd = SMatrix{2,2,ComplexF64}(cispi(-2*freqs[i]*nd*1e-3/c0), 0, 0, cispi(+2*freqs[i]*nd*1e-3/c0))
     # Pv = SMatrix{2,2,ComplexF64}(cispi(+2*freqs[i]*7e-3/c0),    0, 0, cispi(-2*freqs[i]*7e-3/c0))
-    Pv = propagationCoeffs(freqs[i],7e-3,tiltx,0,1.0,modes,coords)
-    Pv0 = propagationCoeffs(freqs[i],0,-tiltx,0,1.0,modes,coords)
+    # Pd = propagationCoeffs(freqs[i],Real(nd)*1e-3,tiltx,tilty,1.0,modes,coords)
+    Pv = propagationCoeffs(freqs[i],7e-3,tiltx,tilty,1.0,modes,coords)
+    Pv0 = propagationCoeffs(freqs[i],0,-tiltx,-tilty,1.0,modes,coords)
     
-    Pd1 = propagationCoeffs(freqs[i],0,+tiltx,0,1.0,modes,coords)
-    Pd2 = propagationCoeffs(freqs[i],0,-tiltx,0,1.0,modes,coords)
+    Pd1 = propagationCoeffs(freqs[i],0,tiltx,+tilty,1.0,modes,coords)
+    Pd2 = propagationCoeffs(freqs[i],0,-tiltx,-tilty,1.0,modes,coords)
 
     ax1 = Pd1*ax
     ax2 = Pd2*ax
 
-    # T33 = [SMatrix{2,2,ComplexF64}(1, 0, 0, 1) for ml in 1:ML]
-    T33 = [sum([[conj(Pv0[ml,ml_]) 0; 0 Pv0[ml,ml_]] for ml_ in 1:ML]) for ml in 1:ML]
+    T33 = [SMatrix{2,2,ComplexF64}(1, 0, 0, 1) for ml in 1:ML]
+    # T33 = [sum([[Pv0[ml,ml_] 0; 0 conj(Pv0[ml,ml_])] for ml_ in 1:ML]) for ml in 1:ML]
     
     T23 = [T33[ml]*Gd*Pd for ml in 1:ML]
+    # T23 = [sum([T23[ml_]*[Pd[ml,ml_] 0; 0 conj(Pd[ml,ml_])] for ml_ in 1:ML]) for ml in 1:ML]
     
     T13 = [T23[ml]*Gv for ml in 1:ML]
-    T13 = [sum([T13[ml_]*[conj(Pv[ml,ml_]) 0; 0 Pv[ml,ml_]] for ml_ in 1:ML]) for ml in 1:ML]
+    T13 = [sum([T13[ml_]*[Pv[ml,ml_] 0; 0 conj(Pv[ml,ml_])] for ml_ in 1:ML]) for ml in 1:ML]
 
     T03 = [T13[ml]*G0 for ml in 1:ML]; T = T03
 
     # MM = [(T13[ml]*S0-T23[ml]*S+T33[ml]*S)*ax[ml] for ml in 1:ML]
 
-    # MM = (T13.*S0).*ax - (T23.*S).*ax + (T33.*S).*ax
-    # MM = (x->x*S0).(T13) .*ax - (x->x*S).(T23).*(ax2) + (x->x*S).(T33).*(ax2)
-    MM = (x->x*S0).(T13) .*ax + (x->x*S).(-T23+T33).*(ax)
-    # MM = (x->x*S0).(T13) + (x->x*S).(-T23+T33)
+    # MM = (x->x*S0).(T13) .*ax - (x->x*S).(T23).*ax + (x->x*S).(T33).*ax
+    # MM = (x->x*S0).(T13) .*ax - (x->x*S).(T23).*(ax2) + (x->x*S).(T33).*(ax2) #okayish
+    # MM = (x->x*S0).(T13) .*ax + (x->x*S).(-T23+T33).*(ax)
+    MM = (x->x*S0).(T13).*(ax) + (x->x*S).(-T23+T33).*(ax2)
 
-
+    W  = MMatrix{2,2,ComplexF64}(undef)
     for ml in 1:ML
-        B[ml,i] = (MM[ml][1,1]+MM[ml][1,2]-
-                (MM[ml][2,1]+MM[ml][2,2])*T[ml][1,2]/T[ml][2,2])
+        B[ml,i] = MM[ml][1,1]+MM[ml][1,2]-
+                (MM[ml][2,1]+MM[ml][2,2])*T[ml][1,2]/T[ml][2,2]
     end
     
     # for ml in 1:ML
     #     B[ml,i] = sum([(MM[ml_][1,1]+MM[ml_][1,2]-
     #             (MM[ml_][2,1]+MM[ml_][2,2])*T[ml_][1,2]/T[ml_][2,2])*ax[ml] for ml_ in 1:ML])
     # end
-end; plot(freqs/1e9,abs2.(B)'; label=["L=-1" "L= 0" "L= 1"])
+end; 
 
+plot(freqs/1e9,abs2.(B)'; label=["L2=-1" "L2= 0" "L2= 1"])
 
+# %%
+
+# filename = "Hardcode_1Disk_no_tilt.svg"
+# filepath = joinpath(@__DIR__, "Plots_for_Meeting/")
+# filepath = joinpath(filepath, filename)
+# savefig(filepath)
 
 
 # note: mistakenly swapping T33 for T13 in 
 # MM = (T13.*S0).*ax - (T23.*S).*ax + (T33.*S).*ax
 # produces current TM3d result
+
+
+#%%
+
+using BoostFractor
+using Distributed
+
+function tilt!(sbdry::SetupBoundaries,deg)
+    ndisk = Int((length(sbdry.distance)-2)/2)
+
+    # tilts = deg2rad(deg)*(2*rand(2,ndisk).-1)
+    tilts = deg
+
+    fill!(sbdry.relative_tilt_x,0.); fill!(sbdry.relative_tilt_y,0.)
+
+    sbdry.relative_tilt_x[2] = tilts[1,1]
+    sbdry.relative_tilt_y[2] = tilts[2,1]
+    sbdry.relative_tilt_x[end] = -tilts[1,end]
+    sbdry.relative_tilt_y[end] = -tilts[2,end]
+
+    for i in 2:ndisk
+        sbdry.relative_tilt_x[2i] = tilts[1,i]
+        sbdry.relative_tilt_y[2i] = tilts[2,i]
+    end
+
+    return
+end
+
+begin
+    
+    # Coordinate System
+    dx = 0.02
+    coords = SeedCoordinateSystem(X = -0.5:dx:0.5, Y = -0.5:dx:0.5)
+    
+    diskR = 0.15
+    
+    # SetupBoundaries (note that this expects the mirror to be defined explicitly as a region)
+    epsilon = 24
+    eps = Array{Complex{Float64}}([NaN,1,epsilon,1])
+    distance = [0.0, 7.0, 1.0, 0.0]*1e-3
+    
+    sbdry = SeedSetupBoundaries(coords, diskno=1, distance=distance, epsilon=eps)
+    
+    # Initialize modes
+    
+    Mmax = 1
+    Lmax = 1
+    modes_BF = SeedModes(coords, ThreeDim=true, Mmax=Mmax, Lmax=Lmax, diskR=diskR)
+    
+    #  Mode-Vector defining beam shape to be reflected on the system
+    m_reflect = zeros(Mmax*(2*Lmax+1))
+    m_reflect[Lmax+1] = 1.0
+end
+
+tilt!(sbdry, [tiltx, deg2rad(0.05)])
+
+df = 0.01*1e9
+# frequencies = 21.98e9:df:22.26e9
+frequencies = freqs
+
+# We will build a 3-dim array [reflection / boost factor, mode-vector, frequency ]
+# The following function appends to the last dimension
+zcat(args...) = cat(dims = 3, args...)
+
+# Sweep over frequency
+@time EoutModes0 = @sync @distributed (zcat) for f in frequencies    
+    println("Frequency: $f")
+    boost, refl = transformer(sbdry,coords,modes_BF; reflect=m_reflect, prop=propagator,diskR=diskR,f=f)
+    transpose([boost  refl])
+end;
+
+#%%
+graph = plot(freqs/1e9, zeros(length(freqs)), label="")
+for i in 1:(modes_BF.M*(modes_BF.L*2+1))
+    if true
+        global graph = plot!(frequencies/1e9, abs2.(EoutModes0[1,i,:]), label="direct M=$i", linestyle=:dash)  
+    end
+end
+display(graph)
+
+# %%
+
+# filename = "BoostFractor_no_tilt.svg"
+# filepath = joinpath(@__DIR__, "Plots_for_Meeting/")
+# filepath = joinpath(filepath, filename)
+# savefig(filepath)

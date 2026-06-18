@@ -1,0 +1,18 @@
+BoostFractor and TransferMatrix produce the same result for untilted 1 disk setup
+
+- TransferMatrix requires significantly higher tilt magnitudes before tilt effects are visible
+- BoostFractor tilt effects depend only on tilt magnitude, not direction
+- Boostfactor amplitude is effected much stronger in TransferMatrix than in BoostFractor
+
+
+Both use the same formula for propagation through space
+Disk grid is identical
+Bessel modes are generated equally
+
+fftshift in BF while TM has the fftshift built into kR at construction?
+    - Shouldn't make a significant difference?
+
+Disk mask is applied before FFT in BF, in TM it is applied during mode decomposition
+    - Shouldn't make a difference as it occurs once per propagation?
+    - However, should not be hard to test either.
+    - Correction, at 2am I couldn't find where TransferMatrix applied the diskmask, however it should be in modeDecomp

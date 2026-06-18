@@ -24,13 +24,11 @@ end
 function tiltField!(E0::Matrix{ComplexF64},k0::Number,coords::Coordinates,
         tiltx::Real,tilty::Real)
     
-    for j in eachindex(coords.X), i in eachindex(coords.X)
-        E0[i,j] *= cis(-k0*(tiltx*coords.X[i]+tilty*coords.X[j]))
-    end
+        E0 .*= cis.(-k0*(tiltx*coords.R .* cos.(coords.Φ) + tilty*coords.R .* sin.(coords.Φ)))
+
 
     return
 end
-
 
 
 function propMatFreeSpace(freqs::Union{Real,AbstractVector{<:Real}},

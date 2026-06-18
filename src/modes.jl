@@ -18,7 +18,7 @@ end
 function modeDecomp(E::Union{Matrix{ComplexF64},Array{ComplexF64,3}},modes::Modes;)
     @assert size(E,1) == size(E,2) == size(modes,1) "Grids of field and modes don't match."
     @assert size(E,3) == size(modes,3) "Dimensionality of field and modes doesn't match."
-
+    
     ML = modes.M*(2modes.L+1)
 
     N = sqrt(sum(abs2.(E)))
