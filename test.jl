@@ -258,19 +258,16 @@ end
 # end
 
 ax = axionModes(coords,modes)
-
-
-
 B = zeros(ComplexF64,M*(2L+1),length(freqs))
 
 @time for i in eachindex(freqs)
-    B[:,i] .= transfer_matrix_3d(dists,0,1,ax,freqs[i],modes,coords)[2,:]
+    B[:,i] .= transfer_matrix_3d(dists,1,0,ax,freqs[i],modes,coords)[2,:]
 end
 
 abs2.(propagationCoeffs(freqs[500],7e-3,0,0,1.0,modes,coords))
-abs2.(propagationCoeffs(freqs[500],7e-3,0,deg2rad(1),1.0,modes,coords))
+abs2.(propagationCoeffs(freqs[500],7e-3,deg2rad(0.1),0,1.0,modes,coords))
 
-st = propagationCoeffs(freqs[500],0,deg2rad(1),deg2rad(0),1.0,modes,coords)
+st = propagationCoeffs(freqs[500],0,deg2rad(0.1),deg2rad(0),1.0,modes,coords)
 
 graph1 = plot(freqs/1e9,abs2.(B)'; label=["L=-1" "L= 0" "L= 1"])
 display(graph1)
@@ -309,12 +306,11 @@ S0 = SMatrix{2,2,ComplexF64}(A0/2, 0.0im, 0.0im, A0/2)
 
     Pd = SMatrix{2,2,ComplexF64}(cispi(-2*freqs[i]*nd*1e-3/c0), 0, 0, cispi(+2*freqs[i]*nd*1e-3/c0))
     # Pv = SMatrix{2,2,ComplexF64}(cispi(+2*freqs[i]*7e-3/c0),    0, 0, cispi(-2*freqs[i]*7e-3/c0))
-    # Pd = propagationCoeffs(freqs[i],Real(nd)*1e-3,tiltx,tilty,1.0,modes,coords)
-    Pv = propagationCoeffs(freqs[i],7e-3,tiltx,tilty,1.0,modes,coords)
-    Pv0 = propagationCoeffs(freqs[i],0,-tiltx,-tilty,1.0,modes,coords)
+    Pv = propagationCoeffs(freqs[i],7e-3,tiltx,0,1.0,modes,coords)
+    Pv0 = propagationCoeffs(freqs[i],0,-tiltx,0,1.0,modes,coords)
     
-    Pd1 = propagationCoeffs(freqs[i],0,tiltx,+tilty,1.0,modes,coords)
-    Pd2 = propagationCoeffs(freqs[i],0,-tiltx,-tilty,1.0,modes,coords)
+    Pd1 = propagationCoeffs(freqs[i],0,+tiltx,0,1.0,modes,coords)
+    Pd2 = propagationCoeffs(freqs[i],0,-tiltx,0,1.0,modes,coords)
 
     ax1 = Pd1*ax
     ax2 = Pd2*ax
