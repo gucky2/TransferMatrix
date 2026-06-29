@@ -267,7 +267,7 @@ end
 abs2.(propagationCoeffs(freqs[500],7e-3,0,0,1.0,modes,coords))
 abs2.(propagationCoeffs(freqs[500],7e-3,deg2rad(0.1),0,1.0,modes,coords))
 
-st = propagationCoeffs(freqs[500],0,deg2rad(0.1),deg2rad(0),1.0,modes,coords)
+st = propagationCoeffs(freqs[500],0,deg2rad(1),deg2rad(0),1.0,modes,coords)
 
 graph1 = plot(freqs/1e9,abs2.(B)'; label=["L=-1" "L= 0" "L= 1"])
 display(graph1)
@@ -286,7 +286,7 @@ B = zeros(ComplexF64,M*(2L+1),length(freqs)); ML = M*(2L+1)
 # B = zeros(ComplexF64,length(freqs))
 
 tiltx = deg2rad(0)
-tilty = deg2rad(1)
+tilty = deg2rad(0.1)
 
 eps = 24.; tand = 0; nm = 1e15
 ϵ  = eps*(1.0-1.0im*tand); nd = sqrt(ϵ); nm = complex(nm); ϵm = nm^2
@@ -306,11 +306,11 @@ S0 = SMatrix{2,2,ComplexF64}(A0/2, 0.0im, 0.0im, A0/2)
 
     Pd = SMatrix{2,2,ComplexF64}(cispi(-2*freqs[i]*nd*1e-3/c0), 0, 0, cispi(+2*freqs[i]*nd*1e-3/c0))
     # Pv = SMatrix{2,2,ComplexF64}(cispi(+2*freqs[i]*7e-3/c0),    0, 0, cispi(-2*freqs[i]*7e-3/c0))
-    Pv = propagationCoeffs(freqs[i],7e-3,tiltx,0,1.0,modes,coords)
-    Pv0 = propagationCoeffs(freqs[i],0,-tiltx,0,1.0,modes,coords)
+    Pv = propagationCoeffs(freqs[i],7e-3,tiltx,tilty,1.0,modes,coords)
+    Pv0 = propagationCoeffs(freqs[i],0,-tiltx,-tilty,1.0,modes,coords)
     
-    Pd1 = propagationCoeffs(freqs[i],0,+tiltx,0,1.0,modes,coords)
-    Pd2 = propagationCoeffs(freqs[i],0,-tiltx,0,1.0,modes,coords)
+    Pd1 = propagationCoeffs(freqs[i],0,+tiltx,tilty,1.0,modes,coords)
+    Pd2 = propagationCoeffs(freqs[i],0,-tiltx,-tilty,1.0,modes,coords)
 
     ax1 = Pd1*ax
     ax2 = Pd2*ax
@@ -362,81 +362,81 @@ plot(freqs/1e9,abs2.(B)'; label=["L2=-1" "L2= 0" "L2= 1"])
 
 #%%
 
-using BoostFractor
-using Distributed
+# using BoostFractor
+# using Distributed
 
-function tilt!(sbdry::SetupBoundaries,deg)
-    ndisk = Int((length(sbdry.distance)-2)/2)
+# function tilt!(sbdry::SetupBoundaries,deg)
+#     ndisk = Int((length(sbdry.distance)-2)/2)
 
-    # tilts = deg2rad(deg)*(2*rand(2,ndisk).-1)
-    tilts = deg
+#     # tilts = deg2rad(deg)*(2*rand(2,ndisk).-1)
+#     tilts = deg
 
-    fill!(sbdry.relative_tilt_x,0.); fill!(sbdry.relative_tilt_y,0.)
+#     fill!(sbdry.relative_tilt_x,0.); fill!(sbdry.relative_tilt_y,0.)
 
-    sbdry.relative_tilt_x[2] = tilts[1,1]
-    sbdry.relative_tilt_y[2] = tilts[2,1]
-    sbdry.relative_tilt_x[end] = -tilts[1,end]
-    sbdry.relative_tilt_y[end] = -tilts[2,end]
+#     sbdry.relative_tilt_x[2] = tilts[1,1]
+#     sbdry.relative_tilt_y[2] = tilts[2,1]
+#     sbdry.relative_tilt_x[end] = -tilts[1,end]
+#     sbdry.relative_tilt_y[end] = -tilts[2,end]
 
-    for i in 2:ndisk
-        sbdry.relative_tilt_x[2i] = tilts[1,i]
-        sbdry.relative_tilt_y[2i] = tilts[2,i]
-    end
+#     for i in 2:ndisk
+#         sbdry.relative_tilt_x[2i] = tilts[1,i]
+#         sbdry.relative_tilt_y[2i] = tilts[2,i]
+#     end
 
-    return
-end
+#     return
+# end
 
-begin
+# begin
     
-    # Coordinate System
-    dx = 0.02
-    coords = SeedCoordinateSystem(X = -0.5:dx:0.5, Y = -0.5:dx:0.5)
+#     # Coordinate System
+#     dx = 0.02
+#     coords = SeedCoordinateSystem(X = -0.5:dx:0.5, Y = -0.5:dx:0.5)
     
-    diskR = 0.15
+#     diskR = 0.15
     
-    # SetupBoundaries (note that this expects the mirror to be defined explicitly as a region)
-    epsilon = 24
-    eps = Array{Complex{Float64}}([NaN,1,epsilon,1])
-    distance = [0.0, 7.0, 1.0, 0.0]*1e-3
+#     # SetupBoundaries (note that this expects the mirror to be defined explicitly as a region)
+#     epsilon = 24
+#     eps = Array{Complex{Float64}}([NaN,1,epsilon,1])
+#     distance = [0.0, 7.0, 1.0, 0.0]*1e-3
     
-    sbdry = SeedSetupBoundaries(coords, diskno=1, distance=distance, epsilon=eps)
+#     sbdry = SeedSetupBoundaries(coords, diskno=1, distance=distance, epsilon=eps)
     
-    # Initialize modes
+#     # Initialize modes
     
-    Mmax = 1
-    Lmax = 1
-    modes_BF = SeedModes(coords, ThreeDim=true, Mmax=Mmax, Lmax=Lmax, diskR=diskR)
+#     Mmax = 1
+#     Lmax = 1
+#     modes_BF = SeedModes(coords, ThreeDim=true, Mmax=Mmax, Lmax=Lmax, diskR=diskR)
     
-    #  Mode-Vector defining beam shape to be reflected on the system
-    m_reflect = zeros(Mmax*(2*Lmax+1))
-    m_reflect[Lmax+1] = 1.0
-end
+#     #  Mode-Vector defining beam shape to be reflected on the system
+#     m_reflect = zeros(Mmax*(2*Lmax+1))
+#     m_reflect[Lmax+1] = 1.0
+# end
 
-tilt!(sbdry, [tiltx, deg2rad(0.05)])
+# tilt!(sbdry, [tiltx, deg2rad(0.05)])
 
-df = 0.01*1e9
-# frequencies = 21.98e9:df:22.26e9
-frequencies = freqs
+# df = 0.01*1e9
+# # frequencies = 21.98e9:df:22.26e9
+# frequencies = freqs
 
-# We will build a 3-dim array [reflection / boost factor, mode-vector, frequency ]
-# The following function appends to the last dimension
-zcat(args...) = cat(dims = 3, args...)
+# # We will build a 3-dim array [reflection / boost factor, mode-vector, frequency ]
+# # The following function appends to the last dimension
+# zcat(args...) = cat(dims = 3, args...)
 
-# Sweep over frequency
-@time EoutModes0 = @sync @distributed (zcat) for f in frequencies    
-    println("Frequency: $f")
-    boost, refl = transformer(sbdry,coords,modes_BF; reflect=m_reflect, prop=propagator,diskR=diskR,f=f)
-    transpose([boost  refl])
-end;
+# # Sweep over frequency
+# @time EoutModes0 = @sync @distributed (zcat) for f in frequencies    
+#     println("Frequency: $f")
+#     boost, refl = transformer(sbdry,coords,modes_BF; reflect=m_reflect, prop=propagator,diskR=diskR,f=f)
+#     transpose([boost  refl])
+# end;
 
-#%%
-graph = plot(freqs/1e9, zeros(length(freqs)), label="")
-for i in 1:(modes_BF.M*(modes_BF.L*2+1))
-    if true
-        global graph = plot!(frequencies/1e9, abs2.(EoutModes0[1,i,:]), label="direct M=$i", linestyle=:dash)  
-    end
-end
-display(graph)
+# #%%
+# graph = plot(freqs/1e9, zeros(length(freqs)), label="")
+# for i in 1:(modes_BF.M*(modes_BF.L*2+1))
+#     if true
+#         global graph = plot!(frequencies/1e9, abs2.(EoutModes0[1,i,:]), label="direct M=$i", linestyle=:dash)  
+#     end
+# end
+# display(graph)
 
 # %%
 
