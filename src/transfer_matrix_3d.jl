@@ -14,23 +14,18 @@ function transfer_matrix_3d(::Type{Dist},distances::AbstractVector{<:Real},
 
     P = gpm.P; ax = gpm.ax; ML = gpm.ML
 
-    Gd = ComplexF64[(1+nd)/2   (1-nd)/2;   (1-nd)/2   (1+nd)/2]
-    Gv = ComplexF64[(nd+1)/2nd (nd-1)/2nd; (nd-1)/2nd (nd+1)/2nd]
-    G0 = ComplexF64[(1+nm)/2   (1-nm)/2;   (1-nm)/2   (1+nm)/2]
+    G0 = G(ML,nm,1)
+    Gv = G(ML,1,nd)
+    Gd = G(ML,nd,1)
 
-    # S  = ComplexF64[ A/2 0.0im; 0.0im  A/2]
-    # S0 = ComplexF64[A0/2 0.0im; 0.0im A0/2]
-    S  = A/2; S0 = A0/2
-    
-    M = copy(S)
-    
-    RB = Array{ComplexF64}(undef,2,ML)
-    
-    T  = Array{ComplexF64}(undef,2,2,ML)
-    MM = zeros(ComplexF64,2,2,ML)
+    S  = A/2  * I(2ML) * diagm([ax, ax])
+    S0 = A0/2 * I(2ML) * diagm([ax, ax])
 
-    TW = Array{ComplexF64}(undef,2,2,ML)
-    W = Matrix{ComplexF64}(undef,2,2)
+    T  = Matrix{ComplexF64}(I, 2*ML, 2*ML)
+    MM = Matrix{ComplexF64}(I, 2*ML, 2*ML)*0
+
+    W  = Matrix{ComplexF64}(undef, 2*ML, 2*ML)
+    TW = Matrix{ComplexF64}(undef, 2*ML, 2*ML)
     
 
 
