@@ -310,7 +310,7 @@ function transfer_matrix_3d(gpm::GrandPropagationMatrix,
         Pv0_temp = construct_from_spline(gpm, j,-deg2rad(tilts[1,1]),-deg2rad(tilts[1,2]))
         Pv0[1:ML,1:ML] .= Pv0_temp; Pv0[ML+1:2ML,ML+1:2ML] .= inv(Pv0_temp) 
 
-        T0 = copy(T) # * Pv0
+        T0 = copy(T) * Pv0
 
         # iterate in reverse order to sum up MM in single sweep (thx david)
         
@@ -341,7 +341,6 @@ function transfer_matrix_3d(gpm::GrandPropagationMatrix,
             if i == 1
                 # Reflection from the mirror at the end of the cavity
                 # MM += T0 * S0                         # Construction of M
-                T0 *= Pv0
                 axpy!(S0, T0, MM)
                 T0 *= G0                              # T *= G0
             end
