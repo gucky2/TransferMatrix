@@ -336,7 +336,7 @@ function transfer_matrix_3d(gpm::GrandPropagationMatrix,
             mul!(tmp, T0, Gv)
             mul!(T0, tmp, Pvd)
             mul!(tmp, T0, Pvt)
-            mul!(T0, tmp, I)  # This line remains unchanged as it multiplies by the identity matrix
+            mul!(T0, tmp, I)
 
             if i == 1
                 # Reflection from the mirror at the end of the cavity
