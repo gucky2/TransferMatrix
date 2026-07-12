@@ -8,23 +8,13 @@ using Interpolations
 
 const c0 = 299792458.
 
-freqs = range(21.8e9,22.3e9,300);
+freqs = range(21.98e9,22.17e9,100);
 
 M = 2; L = 1
 
 coords = Coordinates(1,0.02; diskR=0.15);
 modes = Modes(coords,M,L);
 
-
-# @time gpm = GPM(freqs,distances,tilts,modes,coords);
-
-# E0 = modes2field(ax,modes)[:,:,1]
-# showField(E0,coords)
-
-# k0 = 2π*freqs[1]/c0*sqrt(1)
-# propagate!(E0,k0,coords,10e-3,deg2rad(0.5),0)
-# showField(E0,coords)
-# c1 = field2modes(E0,modes);
 
 dists = [
     7.005317,
@@ -59,7 +49,7 @@ end
 
 # dists = [7.0]*1e-3
 # tilts = zeros(length(dists), 2)
-# tilts[1,1] = 0.1
+# tilts[1,1] = 0.01
 # tilts[1,2] = 0.0
 
 
@@ -153,6 +143,37 @@ function propagationCoeffs(freq::Real,
     return P
 end
 
+# function axionModes(coords::Coordinates,modes::Modes,freqs::AbstractVector{<:Real},
+#         tilts::AbstractVector{<:Real}; velocity_x::Real=0)
+
+#     d = fieldDims(modes)
+#     Ea = Matrix{ComplexF64}(undef,length(coords.X),length(coords.X))
+
+
+#     ML = modes.M*(2modes.L+1)
+#     ax = Array{ComplexF64}(undef,length(freqs),length(tilts),length(tilts),ML)
+
+#     for ty in eachindex(tilts), tx in eachindex(tilts)
+#         for f in eachindex(freqs)
+#             ka = 2π*freqs[f]/c0
+
+#             Ea .= 1; Ea .*= coords.diskmaskin
+            
+#             # inaccuracies of the emitted fields: B-field and velocity effects
+#             if velocity_x != 0
+#                 for (i,x) in enumerate(coords.X); Ea[i,:] .*= cis(ka*x*velocity_x); end
+#             end
+
+#             tiltField!(Ea,ka,coords,tilts[tx],tilts[ty])
+
+#             coeffs = modeDecomp(Ea,modes)
+#             @views copyto!(ax[f,tx,ty,:],coeffs)
+#         end
+#     end
+
+#     return ax
+# end
+
 mutable struct GrandPropagationMatrix
     """
     Precalculates the propagation matrices for a set of distances and relative tilts to later interpolate from.
@@ -167,7 +188,7 @@ mutable struct GrandPropagationMatrix
     L::Int
     ML::Int
 
-    # ax::ScaledInterpolation
+    #ax::ScaledInterpolation
     P_d::ScaledInterpolation
     P_t::ScaledInterpolation
 
@@ -175,8 +196,8 @@ mutable struct GrandPropagationMatrix
             modes::Modes,
             coords::Coordinates;)
         
-        distances = range(1e-3, 9e-3, 20)
-        tilts = range(deg2rad(-0.05), deg2rad(0.05), 20)
+        distances = range(1e-3, 9e-3, 50)
+        tilts = range(deg2rad(-0.05), deg2rad(0.05), 10)
 
         M = modes.M; L = modes.L; ML = M*(2L+1)
         p_d = Array{ComplexF64}(undef,length(freqs),length(distances),ML,ML)
@@ -185,15 +206,17 @@ mutable struct GrandPropagationMatrix
         ni = NoInterp()
         
         # ax = axionModes(coords,modes,freqs,tilts)
-        # itpax = interpolate(ax,(ni,ni,bc,bc))
-        # sitpax = scale(itpax,1:ML,1:length(freqs),tilts,tilts)
+        # itpax = interpolate(ax,(ni,bc,bc,ni))
+        # sitpax = scale(itpax,1:length(freqs),tilts,tilts,1:ML)
 
+        # Spline for distance interpolation
         for i in eachindex(freqs), j in eachindex(distances)
             p_d[i,j,:,:] .= propagationCoeffs(freqs[i],distances[j],0.0,0.0,1.0,modes,coords)
         end
         itpP_d = interpolate(p_d,(ni,bc,ni,ni))
         sitpP_d = scale(itpP_d,1:length(freqs),distances,1:ML,1:ML)
 
+        # Spline for tilt interpolation
         for i in eachindex(freqs), j in eachindex(tilts), k in eachindex(tilts)
             p_t[i,j,k,:,:] .= propagationCoeffs(freqs[i],0.0,tilts[j],tilts[k],1.0,modes,coords)
         end
@@ -238,7 +261,7 @@ function construct_from_spline(gpm::GrandPropagationMatrix,
     return P
 end
 
-
+# %%
 function transfer_matrix_3d(gpm::GrandPropagationMatrix,
         distances::Array{<:Real},
         tilts::Array{<:Real},
@@ -248,9 +271,11 @@ function transfer_matrix_3d(gpm::GrandPropagationMatrix,
         coords::Coordinates;
         eps=24.0,tand=0.,nm=1e30,thickness=1e-3, waveguide=true)
     """
-    Takes a GrandPropagationMatrix and returns the boost factor for a given set of distances, relative tilts, axion modes, and frequencies.
-    eps, tand, nm, and thickness are optional parameters for the material properties of the disks.
-    waveguide is an optional parameter that determines whether to use the perfect waveguide approximation for the propagation matrix inside the disks.
+    Takes a GrandPropagationMatrix and returns the boost factor for a given set of distances, 
+    relative tilts, axion modes, and frequencies. Eps, tand, nm, and thickness are optional 
+    parameters for the material properties of the disks. Waveguide is an optional parameter 
+    that determines whether to use the perfect waveguide approximation for the propagation 
+    matrix inside the disks.
     """
     
     ML = gpm.ML
@@ -269,62 +294,68 @@ function transfer_matrix_3d(gpm::GrandPropagationMatrix,
 
     T  = Matrix{ComplexF64}(I, 2*ML, 2*ML)
 
-    for j in 1:length(freqs)
+    Threads.@threads for j in 1:length(freqs)
         MM = Matrix{ComplexF64}(I, 2*ML, 2*ML)*0
-
+        tmp = Matrix{ComplexF64}(undef, 2*ML, 2*ML)
+        Pvt = Matrix{ComplexF64}(I,2*ML,2*ML)
+        Pvd = Matrix{ComplexF64}(I,2*ML,2*ML)
+        Pv0 = Matrix{ComplexF64}(I,2*ML,2*ML)
+        Pd = Matrix{ComplexF64}(I,2*ML,2*ML)
+        
         # Propagation matrix for propagation inside disks.
         Pd_ = cispi(+2*freqs[j]*nd*thickness/c0)
         Pd = diagm([fill(conj(Pd_),ML); fill(Pd_,ML)])
 
         # Tilt of the first disk.
-        Pv0_temp = propagationCoeffs(freqs[j],0.0,-deg2rad(tilts[1,1]),-deg2rad(tilts[1,2]),1.0,modes,coords)
-        Pv0 = Matrix{ComplexF64}(I,2*ML,2*ML)
+        Pv0_temp = construct_from_spline(gpm, j,-deg2rad(tilts[1,1]),-deg2rad(tilts[1,2]))
         Pv0[1:ML,1:ML] .= Pv0_temp; Pv0[ML+1:2ML,ML+1:2ML] .= inv(Pv0_temp) 
 
-        T0 = copy(T) * Pv0
+        T0 = copy(T) # * Pv0
 
         # iterate in reverse order to sum up MM in single sweep (thx david)
         
         for i in Iterators.reverse(eachindex(distances))
             if waveguide == false
                 Pd_temp = propagationCoeffs(freqs[j],thickness,0.0,0.0,eps,modes,coords)
-                Pd = Matrix{ComplexF64}(I,2*ML,2*ML)
                 Pd[1:ML,1:ML] .= Pd_temp; Pd[ML+1:2ML,ML+1:2ML] .= inv(Pd_temp)
             end
-            Pvd_temp = construct_from_spline(gpm, j, distances[i]) 
-            Pvt_temp = construct_from_spline(gpm, j, deg2rad(tilts[i,1]), deg2rad(tilts[i,2])) 
             # Distance propagation matrix
-            Pvd = Matrix{ComplexF64}(I,2*ML,2*ML)
-            Pvd[1:ML,1:ML] .= Pvd_temp; Pvd[ML+1:2ML,ML+1:2ML] .= inv(Pvd_temp)
+            Pvd[1:ML,1:ML] .= construct_from_spline(gpm, j, distances[i]); Pvd[ML+1:2ML,ML+1:2ML] .= inv(Pvd[1:ML,1:ML])
             # Tilt propagation matrix
-            Pvt = Matrix{ComplexF64}(I,2*ML,2*ML)
-            Pvt[1:ML,1:ML] .= Pvt_temp; Pvt[ML+1:2ML,ML+1:2ML] .= inv(Pvt_temp)
-        
+            Pvt[1:ML,1:ML] .= construct_from_spline(gpm, j, deg2rad(tilts[i,1]), deg2rad(tilts[i,2])); Pvt[ML+1:2ML,ML+1:2ML] .= inv(Pvt[1:ML,1:ML])
+            
+            # MM += T0 * S                              # Construction of M
+            axpy!(S, T0, MM)
+            # T0 *= Gd * Pd                             # T = Gd*Pd 
+            mul!(tmp, T0, Gd)
+            mul!(T0, tmp, Pd)
+            # MM -= T0 * S                              # Construction of M
+            axpy!(-S, T0, MM) 
 
-            MM += T0 * S                              # Construction of M
-
-            T0 *= Gd * Pd                             # T = Gd*Pd 
-                
-            MM -= T0 * S                              # Construction of M
-
-            T0 *= Gv * Pvd * Pvt                      # T *= Gv * Pv
+            # T0 *= Gv * Pvd * Pvt                      # T *= Gv * Pv
+            mul!(tmp, T0, Gv)
+            mul!(T0, tmp, Pvd)
+            mul!(tmp, T0, Pvt)
+            mul!(T0, tmp, I)  # This line remains unchanged as it multiplies by the identity matrix
 
             if i == 1
                 # Reflection from the mirror at the end of the cavity
-                MM += T0 * S0                         # Construction of M
+                # MM += T0 * S0                         # Construction of M
+                T0 *= Pv0
+                axpy!(S0, T0, MM)
                 T0 *= G0                              # T *= G0
             end
         end
 
         # Split the block matrix into its components
 
-        M11 = MM[1:ML,1:ML]
-        M12 = MM[1:ML,ML+1:2ML]
-        M21 = MM[ML+1:2ML,1:ML]
-        M22 = MM[ML+1:2ML,ML+1:2ML]
+        M11 = @view MM[1:ML,1:ML]
+        M12 = @view MM[1:ML,ML+1:2ML]
+        M21 = @view MM[ML+1:2ML,1:ML]
+        M22 = @view MM[ML+1:2ML,ML+1:2ML]
 
-        T12 = T0[1:ML,ML+1:2ML]
-        T22 = T0[ML+1:2ML,ML+1:2ML]
+        T12 = @view T0[1:ML,ML+1:2ML]
+        T22 = @view T0[ML+1:2ML,ML+1:2ML]
 
         # Compute the boost factor for the given frequency and store it in B
 
@@ -333,11 +364,12 @@ function transfer_matrix_3d(gpm::GrandPropagationMatrix,
     return B
 end
 
-
+# %%
 
 ax = axionModes(coords,modes)
 
 gpm = GrandPropagationMatrix(freqs, modes, coords)
+#%%
 @time B = transfer_matrix_3d(gpm,dists,tilts,ax,freqs,modes,coords,waveguide=true)
 
 
@@ -505,6 +537,7 @@ begin
                             6.785361, 1.0,
                             7.310886, 1.0,
                             0.0]*1e-3
+
 
     sbdry = SeedSetupBoundaries(coords, diskno=20, distance=distance, epsilon=eps)
 
