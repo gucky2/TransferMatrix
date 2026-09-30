@@ -44,7 +44,7 @@ end
 
 ax = axionModes(coords,modes)
 
-gpm = GrandPropagationMatrix(freqs, modes, coords)
+@time gpm = GrandPropagationMatrix(freqs, modes, coords)
 
 @time B = transfer_matrix_3d(gpm,dists,tilts,ax,freqs,waveguide=true)
 

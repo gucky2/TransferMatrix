@@ -177,6 +177,50 @@ mutable struct GrandPropagationMatrix
 
         new(freqs,thickness,eps,tand,nm,M,L,ML,sitpP_d,sitpP_t,sitpP_disk)
     end
+
+    function GrandPropagationMatrix(freqs::AbstractArray{<:Real},
+            modes::Modes,
+            coords::Coordinates,
+            n1,
+            n2; 
+            eps=24.0,
+            tand=0.,
+            nm=1e30,
+            thickness=1e-3)
+        
+        distances = range(0e-3, 10e-3, n1)
+        tilts = range(deg2rad(-0.05), deg2rad(0.05), n2)
+
+        M = modes.M; L = modes.L; ML = M*(2L+1)
+        p_d = Array{ComplexF64}(undef,length(freqs),length(distances),ML,ML)
+        p_t = Array{ComplexF64}(undef,length(freqs),length(tilts),length(tilts),ML,ML)
+        p_disk = Array{ComplexF64}(undef,length(freqs),length(distances),ML,ML)
+        bc = BSpline(Cubic(Natural(OnCell())))
+        ni = NoInterp()
+
+        # Spline for distance interpolation
+        for i in eachindex(freqs), j in eachindex(distances)
+            p_d[i,j,:,:] .= propagationCoeffs(freqs[i],distances[j],0.0,0.0,1.0,modes,coords)
+        end
+        itpP_d = interpolate(p_d,(ni,bc,ni,ni))
+        sitpP_d = scale(itpP_d,1:length(freqs),distances,1:ML,1:ML)
+
+        # Spline for disk propagation
+        for i in eachindex(freqs), j in eachindex(distances)
+            p_disk[i,j,:,:] .= propagationCoeffs(freqs[i],distances[j],0.0,0.0,eps,modes,coords)
+        end
+        itpP_disk = interpolate(p_disk,(ni,bc,ni,ni))
+        sitpP_disk = scale(itpP_disk,1:length(freqs),distances,1:ML,1:ML)
+
+        # Spline for tilt interpolation
+        for i in eachindex(freqs), j in eachindex(tilts), k in eachindex(tilts)
+            p_t[i,j,k,:,:] .= propagationCoeffs(freqs[i],0.0,tilts[j],tilts[k],1.0,modes,coords)
+        end
+        itpP_t = interpolate(p_t,(ni,bc,bc,ni,ni))
+        sitpP_t = scale(itpP_t,1:length(freqs),tilts,tilts,1:ML,1:ML)
+
+        new(freqs,thickness,eps,tand,nm,M,L,ML,sitpP_d,sitpP_t,sitpP_disk)
+    end
 end
 
 const GPM = GrandPropagationMatrix

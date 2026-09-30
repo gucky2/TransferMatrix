@@ -10,42 +10,63 @@ const c0 = 299792458.
 
 freqs = range(21.98e9,22.17e9,100);
 
-M = 2; L = 1
+M = 1; L = 1
 
 coords = Coordinates(1,0.02; diskR=0.15);
 modes = Modes(coords,M,L);
 
 
-dists = [
-    7.005317,
-    7.161926,
-    7.436722,
-    7.144421,
-    7.185010,
-    7.209110,
-    7.278833,
-    7.169816,
-    7.250541,
-    7.214103,
-    7.170475,
-    7.245183,
-    7.241939,
-    7.191030,
-    7.208307,
-    7.300933,
-    7.203299,
-    7.265450,
-    6.785361,
-    7.310886,
-]*1e-3
+# dists = [
+#     7.005317,
+#     7.161926,
+#     7.436722,
+#     7.144421,
+#     7.185010,
+#     7.209110,
+#     7.278833,
+#     7.169816,
+#     7.250541,
+#     7.214103,
+#     7.170475,
+#     7.245183,
+#     7.241939,
+#     7.191030,
+#     7.208307,
+#     7.300933,
+#     7.203299,
+#     7.265450,
+#     6.785361,
+#     7.310886,
+# ]*1e-3
+
+dists = [1.00334,
+        6.94754,
+        7.1766,
+        7.22788,
+        7.19717,
+        7.23776,
+        7.07746,
+        7.57173,
+        7.08019,
+        7.24657,
+        7.21708,
+        7.18317,
+        7.13025,
+        7.2198,
+        7.45585,
+        7.39873,
+        7.15403,
+        7.14252,
+        6.83105,
+        7.42282]*1e-3
 
 using Random
 Random.seed!(3)
 tilts = zeros(length(dists), 2)
-for i in 1:length(dists)
-    tilts[i,1] = 0.01 * randn()
-    tilts[i,2] = 0.01 * randn()
-end
+# for i in 1:length(dists)
+#     tilts[i,1] = 0.01 * randn()
+#     tilts[i,2] = 0.01 * randn()
+# end
 
 # dists = [7.0]*1e-3
 # tilts = zeros(length(dists), 2)
@@ -148,6 +169,7 @@ mutable struct GrandPropagationMatrix
     Precalculates the propagation matrices for a set of distances and relative tilts to later interpolate from.
     P_d contains the spline for distance interpolation.
     P_t contains the spline for tilt interpolation.
+    P_disk contains the spline for propagation inside the disks.
     """
     freqs::AbstractArray{<:Real}
     thickness::Float64
@@ -351,7 +373,6 @@ end
 
 
 @time B = transfer_matrix_3d(gpm,dists,tilts,ax,freqs,waveguide=true)
-
 
 # abs2.(propagationCoeffs(freqs[500],7e-3,0,0,1.0,modes,coords))
 # abs2.(propagationCoeffs(freqs[500],7e-3,deg2rad(0.1),0,1.0,modes,coords))
