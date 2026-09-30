@@ -1,12 +1,12 @@
 using TransferMatrix
 using Plots
-using LinearAlgebra, SpecialFunctions, FunctionZeros, Interpolations
+using LaTeXStrings
 
 const c0 = 299792458.
 
 
 
-freqs = range(21.98e9,22.17e9,100);
+freqs = range(21.98e9,22.11e9,100);
 
 M = 1; L = 1
 
@@ -41,12 +41,12 @@ ax = axionModes(coords,modes)
 tilts = zeros(length(dists), 2)
 
 n2 = 5
-n1_values = 5:5:100
+n1_values = 5:10:40
 
 graph1 = plot(
-    xlabel="Frequency [GHz]",
-    ylabel="Total boost factor |B|^2",
-    title="Boost-factor convergence with distance spline knots",
+    xlabel=L"\textrm{Frequency ~ [GHz]}",
+    ylabel=L"\textrm{Total ~ boostfactor} ~ \beta^2",
+    title=L"\textrm{Boostfactor ~ simulation ~ for ~ different ~ spline ~ knot ~ densities}",
     legend=:outerright,
 )
 
