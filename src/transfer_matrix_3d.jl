@@ -1,5 +1,5 @@
 
-export G, transfer_matrix_3d
+export G, transfer_matrix_3d, transfer_matrix_3d_explicit
 
 function G(ML::Number,
     n1::Number,

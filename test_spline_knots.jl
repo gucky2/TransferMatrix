@@ -50,6 +50,11 @@ graph1 = plot(
     legend=:outerright,
 )
 
+@time gpm = GrandPropagationMatrix(freqs, modes, coords)
+@time B = transfer_matrix_3d_explicit(gpm, dists, tilts, ax, freqs, modes, coords; waveguide=true)
+total_boostfactor = vec(sum(abs2, B; dims=1))
+plot!(graph1, freqs ./ 1e9, total_boostfactor; label="Fourier Prop")
+
 for n1 in n1_values
     @time gpm = GrandPropagationMatrix(freqs, modes, coords, n1, n2)
     @time B = transfer_matrix_3d(gpm, dists, ax, freqs; waveguide=true)
