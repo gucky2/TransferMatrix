@@ -144,8 +144,9 @@ mutable struct GrandPropagationMatrix
             nm=1e30,
             thickness=1e-3)
         
-        distances = range(0e-3, 10e-3, 50)
-        tilts = range(deg2rad(-0.05), deg2rad(0.05), 10)
+        distances = range(0e-3, 10e-3, 60)
+        tilts = range(deg2rad(-0.05), deg2rad(0.05), 20)
+        thickness = range(8e-4, 12e-4, 10)
 
         M = modes.M; L = modes.L; ML = M*(2L+1)
         p_d = Array{ComplexF64}(undef,length(freqs),length(distances),ML,ML)
@@ -162,11 +163,11 @@ mutable struct GrandPropagationMatrix
         sitpP_d = scale(itpP_d,1:length(freqs),distances,1:ML,1:ML)
 
         # Spline for disk propagation
-        for i in eachindex(freqs), j in eachindex(distances)
-            p_disk[i,j,:,:] .= propagationCoeffs(freqs[i],distances[j],0.0,0.0,eps,modes,coords)
+        for i in eachindex(freqs), j in eachindex(thickness)
+            p_disk[i,j,:,:] .= propagationCoeffs(freqs[i],thickness[j],0.0,0.0,eps,modes,coords)
         end
         itpP_disk = interpolate(p_disk,(ni,bc,ni,ni))
-        sitpP_disk = scale(itpP_disk,1:length(freqs),distances,1:ML,1:ML)
+        sitpP_disk = scale(itpP_disk,1:length(freqs),thickness,1:ML,1:ML)
 
         # Spline for tilt interpolation
         for i in eachindex(freqs), j in eachindex(tilts), k in eachindex(tilts)
