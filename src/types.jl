@@ -151,7 +151,7 @@ mutable struct GrandPropagationMatrix
         M = modes.M; L = modes.L; ML = M*(2L+1)
         p_d = Array{ComplexF64}(undef,length(freqs),length(distances),ML,ML)
         p_t = Array{ComplexF64}(undef,length(freqs),length(tilts),length(tilts),ML,ML)
-        p_disk = Array{ComplexF64}(undef,length(freqs),length(distances),ML,ML)
+        p_disk = Array{ComplexF64}(undef,length(freqs),length(thickness),ML,ML)
         bc = BSpline(Cubic(Natural(OnCell())))
         ni = NoInterp()
 
