@@ -5,7 +5,7 @@ const c0 = 299792458.
 
 freqs = range(21.98e9,22.17e9,100);
 
-M = 2; L = 1
+M = 1; L = 1
 
 coords = Coordinates(1,0.02; diskR=0.15);
 modes = Modes(coords,M,L);

@@ -54,7 +54,7 @@ end
 mutable struct Modes
     M::Int64
     L::Int64
-    total::Int64
+    ML::Int64
     modes::Array{ComplexF64,4}
     kt::Vector{ComplexF64}
     id::Matrix{ComplexF64}
