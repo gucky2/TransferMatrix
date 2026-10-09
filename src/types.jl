@@ -105,8 +105,20 @@ end
 
 fieldDims(modes::Modes) = size(modes.modes,3)
 
-function modeidx(m::Int,l::Int,L::Int)
-    return (m-1)*(2L+1)+l+L+1
+function modeidx(m::Int, l::Int, L::Int)
+    m >= 1 || throw(ArgumentError("m must be positive"))
+    L >= 0 || throw(ArgumentError("L must be nonnegative"))
+
+    q = min(m, L)
+    abs(l) <= q || throw(ArgumentError("l must satisfy -min(m,L) <= l <= min(m,L)"))
+
+    before = if m <= L
+        (m - 1) * (m + 1)
+    else
+        L * (L + 2) + (m - L - 1) * (2L + 1)
+    end
+
+    return before + l + q + 1
 end
 
 function modeidx(ml::Int,L::Int)
