@@ -54,6 +54,7 @@ end
 mutable struct Modes
     M::Int64
     L::Int64
+    total::Int64
     modes::Array{ComplexF64,4}
     kt::Vector{ComplexF64}
     id::Matrix{ComplexF64}
@@ -62,23 +63,40 @@ mutable struct Modes
     function Modes(M,L,modes,kt)                
         @assert M > 0 "m needs to be larger than 0."
 
-        ML = M*(2L+1)
+        ML = 0
+        for m in 1:M
+           if m < L
+               ML += 2m+1
+           else
+               ML += 2L+1
+           end
+        end
         id = Matrix{ComplexF64}(I,ML,ML)
         z = zeros(ComplexF64,ML,ML)
 
-        new(M,L,modes,kt,id,z)
+        new(M,L,ML,modes,kt,id,z)
     end
 
     function Modes(coords,M,L)
         @assert M > 0 "m needs to be larger than 0."
 
-        ML = M*(2L+1)
+        ML = 0
+        for m in 1:M
+           if m < L
+               ML += 2m+1
+           else
+               ML += 2L+1
+           end
+        end
+
         modes = zeros(ComplexF64,length(coords.X),length(coords.X),1,ML)
         kt = zeros(ComplexF64,ML)
         
         for m in 1:M, l in -L:L
-            ml = modeidx(m,l,L)
-            kt[ml], modes[:,:,:,ml] = mode(coords,m,l)
+            if abs(l) <= m
+                ml = modeidx(m,l,L)
+                kt[ml], modes[:,:,:,ml] = mode(coords,m,l)
+            end
         end
 
         return Modes(M,L,modes,kt)
@@ -148,7 +166,7 @@ mutable struct GrandPropagationMatrix
         tilts = range(deg2rad(-0.05), deg2rad(0.05), 20)
         disk_thickness = range(8e-4, 12e-4, 10)
 
-        M = modes.M; L = modes.L; ML = M*(2L+1)
+        M = modes.M; L = modes.L; ML = modes.ML
         p_d = Array{ComplexF64}(undef,length(freqs),length(distances),ML,ML)
         p_t = Array{ComplexF64}(undef,length(freqs),length(tilts),length(tilts),ML,ML)
         p_disk = Array{ComplexF64}(undef,length(freqs),length(disk_thickness),ML,ML)
@@ -192,7 +210,7 @@ mutable struct GrandPropagationMatrix
         distances = range(0e-3, 10e-3, n1)
         tilts = range(deg2rad(-0.05), deg2rad(0.05), n2)
 
-        M = modes.M; L = modes.L; ML = M*(2L+1)
+        M = modes.M; L = modes.L; ML = modes.ML
         p_d = Array{ComplexF64}(undef,length(freqs),length(distances),ML,ML)
         p_t = Array{ComplexF64}(undef,length(freqs),length(tilts),length(tilts),ML,ML)
         p_disk = Array{ComplexF64}(undef,length(freqs),length(distances),ML,ML)

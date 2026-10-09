@@ -19,7 +19,7 @@ function modeDecomp(E::Union{Matrix{ComplexF64},Array{ComplexF64,3}},modes::Mode
     @assert size(E,1) == size(E,2) == size(modes,1) "Grids of field and modes don't match."
     @assert size(E,3) == size(modes,3) "Dimensionality of field and modes doesn't match."
     
-    ML = modes.M*(2modes.L+1)
+    ML = modes.ML
 
     N = sqrt(sum(abs2.(E)))
     coeffs = zeros(ComplexF64,ML)
@@ -59,7 +59,7 @@ end
 function modes2field(coeffs::AbstractVector{ComplexF64},modes::Modes)
     field = zeros(ComplexF64,size(modes,1),size(modes,2),size(modes,3))
 
-    for ml in 1:modes.M*(2modes.L+1); @. field += coeffs[ml]*modes.modes[:,:,:,ml]; end
+    for ml in 1:modes.ML; @. field += coeffs[ml]*modes.modes[:,:,:,ml]; end
 
     return field
 end
@@ -72,7 +72,7 @@ function axionModes(coords::Coordinates,modes::Modes,freqs::AbstractVector{<:Rea
     Ea = Matrix{ComplexF64}(undef,length(coords.X),length(coords.X))
 
 
-    ML = modes.M*(2modes.L+1)
+    ML = modes.ML
     ax = Array{ComplexF64}(undef,ML,length(freqs),length(tilts),length(tilts))
 
     for ty in eachindex(tilts), tx in eachindex(tilts)

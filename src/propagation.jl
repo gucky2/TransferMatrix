@@ -63,7 +63,7 @@ function propagationCoeffs(freq::Real,
     Constructs the MLxML propagation matrix for a set of modes, given a frequency, distance, tilts, and permittivity.
     """
 
-    ML = modes.M*(2modes.L+1)
+    ML = modes.ML
     P = Array{ComplexF64}(undef,ML,ML)
 
     k0 = 2π*freq/c0*sqrt(eps)
