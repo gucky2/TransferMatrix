@@ -76,8 +76,12 @@ function transfer_matrix_3d(gpm::GrandPropagationMatrix,
             Pvd[1:ML,1:ML] .= construct_from_spline(gpm, gpm.P_d, j, distances[i])
             Pvd[ML+1:2ML,ML+1:2ML] .= inv(Pvd[1:ML,1:ML])
             # Tilt propagation matrix
-            Pvt[1:ML,1:ML] .= construct_from_spline(gpm, gpm.P_t, j, deg2rad(tilts[i,1]), deg2rad(tilts[i,2]))
-            Pvt[ML+1:2ML,ML+1:2ML] .= inv(Pvt[1:ML,1:ML])
+            if tilts[i,1] == tilts[i,2] == 0.0
+                Pvt .= Matrix{ComplexF64}(I,2*ML,2*ML)
+            else
+                Pvt[1:ML,1:ML] .= construct_from_spline(gpm, gpm.P_t, j, deg2rad(tilts[i,1]), deg2rad(tilts[i,2]))
+                Pvt[ML+1:2ML,ML+1:2ML] .= inv(Pvt[1:ML,1:ML])
+            end
             
             # MM += T0 * S
             axpy!(S, T0, MM)
@@ -270,8 +274,12 @@ function transfer_matrix_3d_explicit(gpm::GrandPropagationMatrix,
             Pvd[1:ML,1:ML] .= propagationCoeffs(freqs[j],distances[i],0.0,0.0,1.0,modes,coords)
             Pvd[ML+1:2ML,ML+1:2ML] .= inv(Pvd[1:ML,1:ML])
             # Tilt propagation matrix
-            Pvt[1:ML,1:ML] .= propagationCoeffs(freqs[j],0.0,deg2rad(tilts[i,1]), deg2rad(tilts[i,2]),1.0,modes,coords)
-            Pvt[ML+1:2ML,ML+1:2ML] .= inv(Pvt[1:ML,1:ML])
+            if tilts[i,1] == tilts[i,2] == 0.0
+                Pvt .= Matrix{ComplexF64}(I,2*ML,2*ML)
+            else
+                Pvt[1:ML,1:ML] .= propagationCoeffs(freqs[j],0.0,deg2rad(tilts[i,1]), deg2rad(tilts[i,2]),1.0,modes,coords)
+                Pvt[ML+1:2ML,ML+1:2ML] .= inv(Pvt[1:ML,1:ML])
+            end
             
             # MM += T0 * S
             axpy!(S, T0, MM)
