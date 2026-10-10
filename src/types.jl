@@ -63,14 +63,7 @@ mutable struct Modes
     function Modes(M,L,modes,kt)                
         @assert M > 0 "m needs to be larger than 0."
 
-        ML = 0
-        for m in 1:M
-           if m < L
-               ML += 2m+1
-           else
-               ML += 2L+1
-           end
-        end
+        ML = M*(2L+1)
         id = Matrix{ComplexF64}(I,ML,ML)
         z = zeros(ComplexF64,ML,ML)
 
@@ -80,23 +73,14 @@ mutable struct Modes
     function Modes(coords,M,L)
         @assert M > 0 "m needs to be larger than 0."
 
-        ML = 0
-        for m in 1:M
-           if m < L
-               ML += 2m+1
-           else
-               ML += 2L+1
-           end
-        end
+        ML = M*(2L+1)
 
         modes = zeros(ComplexF64,length(coords.X),length(coords.X),1,ML)
         kt = zeros(ComplexF64,ML)
         
         for m in 1:M, l in -L:L
-            if abs(l) <= m
-                ml = modeidx(m,l,L)
-                kt[ml], modes[:,:,:,ml] = mode(coords,m,l)
-            end
+            ml = modeidx(m,l,L)
+            kt[ml], modes[:,:,:,ml] = mode(coords,m,l)
         end
 
         return Modes(M,L,modes,kt)
@@ -105,20 +89,8 @@ end
 
 fieldDims(modes::Modes) = size(modes.modes,3)
 
-function modeidx(m::Int, l::Int, L::Int)
-    m >= 1 || throw(ArgumentError("m must be positive"))
-    L >= 0 || throw(ArgumentError("L must be nonnegative"))
-
-    q = min(m, L)
-    abs(l) <= q || throw(ArgumentError("l must satisfy -min(m,L) <= l <= min(m,L)"))
-
-    before = if m <= L
-        (m - 1) * (m + 1)
-    else
-        L * (L + 2) + (m - L - 1) * (2L + 1)
-    end
-
-    return before + l + q + 1
+function modeidx(m::Int,l::Int,L::Int)
+    return (m-1)*(2L+1)+l+L+1
 end
 
 function modeidx(ml::Int,L::Int)
