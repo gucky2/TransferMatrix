@@ -43,7 +43,7 @@ function propagate!(E0::Matrix{ComplexF64},
     if dz != 0
         propagate!(E0,k0,coords,dz)
     end
-    if tiltx + tilty != tiltx - tilty
+    if tiltx != 0 || tilty != 0
         tiltField!(E0,k0,coords,tiltx,tilty)
     end
 
