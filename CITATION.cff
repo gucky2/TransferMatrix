@@ -4,3 +4,5 @@ authors:
   - family-names: Baltschun
     given-names: Sebastian
 title: "Spline Interpolation"
+repository-code: 'https://github.com/gucky2/TransferMatrix'
+
